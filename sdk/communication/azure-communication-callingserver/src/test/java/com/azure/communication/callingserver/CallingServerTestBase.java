@@ -61,7 +61,7 @@ public class CallingServerTestBase extends TestBase {
             redactors.add(data -> redact(data, JSON_PROPERTY_VALUE_REDACTION_PATTERN.matcher(data), "REDACTED"));
             builder.addPolicy(interceptorManager.getRecordPolicy(redactors));
         }
-        return builder;        
+        return builder;
     }
 
     private static TestMode initializeTestMode() {

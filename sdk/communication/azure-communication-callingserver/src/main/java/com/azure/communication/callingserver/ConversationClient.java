@@ -7,14 +7,22 @@ import com.azure.communication.callingserver.implementation.models.PlayAudioRequ
 import com.azure.communication.callingserver.models.CallRecordingStateResponse;
 import com.azure.communication.callingserver.models.JoinCallOptions;
 import com.azure.communication.callingserver.models.JoinCallResponse;
+import com.azure.communication.callingserver.models.ParallelDownloadOptions;
 import com.azure.communication.callingserver.models.PlayAudioResponse;
 import com.azure.communication.callingserver.models.StartCallRecordingResponse;
 import com.azure.communication.common.CommunicationIdentifier;
 import com.azure.core.annotation.ReturnType;
 import com.azure.core.annotation.ServiceClient;
 import com.azure.core.annotation.ServiceMethod;
+import com.azure.core.http.HttpRange;
 import com.azure.core.http.rest.Response;
 import com.azure.core.util.Context;
+import reactor.core.publisher.Flux;
+
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 /**
  * Sync Client that supports server call operations.
@@ -127,7 +135,7 @@ public final class ConversationClient {
      *
      * @param conversationId The conversation id.
      * @param recordingStateCallbackUri The uri to send state change callbacks.
-     * @param context A {@link Context} representing the request context. 
+     * @param context A {@link Context} representing the request context.
      * @return response for a successful startRecording request.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
@@ -249,7 +257,7 @@ public final class ConversationClient {
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
     public PlayAudioResponse playAudio(String conversationId, String audioFileUri, String audioFileId, String callbackUri, String operationContext) {
-        
+
         //Currently we do not support loop on the audio media for out-call, thus setting the loop to false
         PlayAudioRequest playAudioRequest = new PlayAudioRequest().
             setAudioFileUri(audioFileUri).setLoop(false).setAudioFileId(audioFileId).setCallbackUri(callbackUri).setOperationContext(operationContext);
@@ -274,5 +282,105 @@ public final class ConversationClient {
         PlayAudioRequest playAudioRequest = new PlayAudioRequest().
             setAudioFileUri(audioFileUri).setLoop(false).setAudioFileId(audioFileId).setCallbackUri(callbackUri).setOperationContext(operationContext);
         return conversationAsyncClient.playAudioWithResponse(conversationId, playAudioRequest, context).block();
+    }
+
+    /**
+     * Download the recording content, e.g. Recording's metadata, Recording video, etc., from
+     * {@code endpoint} and write it into the {@link OutputStream} passed as parameter.
+     * @param output - A stream where to write the downloaded content.
+     * @param endpoint - ACS URL where the content is located.
+     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
+     *               the whole content will be downloaded.
+     * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
+     *                               download will work.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public void downloadTo(OutputStream output, URI endpoint, HttpRange range,
+                           ParallelDownloadOptions parallelDownloadOptions) {
+        conversationAsyncClient.downloadTo(output, endpoint, range, parallelDownloadOptions).block();
+    }
+
+    /**
+     * Download the recording content, e.g. Recording's metadata, Recording video, etc., from
+     * {@code endpoint} and write it in the {@link OutputStream} passed as parameter.
+     * @param output - A stream where to write the downloaded content.
+     * @param endpoint - ACS URL where the content is located.
+     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
+     *              the whole content will be downloaded.
+     * @param context A {@link Context} representing the request context.
+     * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
+     *                               download will work.
+     * @return Response containing the http response information from the download.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<Void> downloadToWithResponse(OutputStream output, URI endpoint, HttpRange range,
+                           ParallelDownloadOptions parallelDownloadOptions, Context context) {
+        return conversationAsyncClient.downloadToWithResponse(output, endpoint, range, parallelDownloadOptions, context)
+            .block();
+    }
+
+    /**
+     * Download the content located in {@code endpoint} into a file marked by {@code path}.
+     * This download will be done using parallel workers.
+     * @param path - File location.
+     * @param endpoint - ACS URL where the content is located.
+     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
+     *                  the whole content will be downloaded.
+     * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
+     *                               download will work.
+     * @param overwrite - True to overwrite the file if it exists.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public void downloadTo(Path path, URI endpoint, HttpRange range,
+                           ParallelDownloadOptions parallelDownloadOptions,
+                           boolean overwrite) {
+        conversationAsyncClient.downloadTo(path, endpoint, range,
+            parallelDownloadOptions, overwrite).block();
+    }
+
+    /**
+     * Download the content located in {@code endpoint} into a file marked by {@code path}.
+     * This download will be done using parallel workers.
+     * @param path - File location.
+     * @param endpoint - ACS URL where the content is located.
+     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
+     *                  the whole content will be downloaded.
+     * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
+     *                               download will work.
+     * @param overwrite - True to overwrite the file if it exists.
+     * @param context A {@link Context} representing the request context.
+     * @return Response containing the http response information from the download.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<Void> downloadToWithResponse(Path path, URI endpoint, HttpRange range,
+                                                 ParallelDownloadOptions parallelDownloadOptions,
+                                                 boolean overwrite, Context context) {
+        return conversationAsyncClient.downloadToWithResponse(path, endpoint, range,
+            parallelDownloadOptions, overwrite, context).block();
+    }
+
+    /**
+     * Download the content located in {@code endpoint}, e.g. Recording video, from the ACS endpoint passed as
+     * parameter.
+     * @param endpoint - ACS URL where the content is located.
+     * @return The byte stream of the requested content.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Flux<ByteBuffer> downloadStreaming(URI endpoint) {
+        return conversationAsyncClient.downloadStreaming(endpoint).block();
+    }
+
+    /**
+     * Download the content located in {@code endpoint}, e.g. Recording video, from the ACS endpoint passed as
+     * parameter.
+     * @param endpoint - ACS URL where the content is located.
+     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
+     *                  the whole content will be downloaded.
+     * @param context A {@link Context} representing the request context.
+     * @return Response containing the byte stream of the content requested.
+     */
+    @ServiceMethod(returns = ReturnType.SINGLE)
+    public Response<Flux<ByteBuffer>> downloadStreamingWithResponse(URI endpoint, HttpRange range, Context context) {
+        return conversationAsyncClient.downloadStreamingWithResponse(endpoint, range, context).block();
     }
 }
