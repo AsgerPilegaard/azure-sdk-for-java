@@ -41,7 +41,7 @@ public class DownloadContentTests extends CallingServerTestBase {
 
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            conversationClient.downloadTo(baos, new URI(METADATA_URL), null, null);
+            conversationClient.downloadTo(baos, new URI(METADATA_URL), null);
             String metadata = baos.toString(StandardCharsets.UTF_8);
             assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
         } catch (Exception e) {
@@ -83,7 +83,7 @@ public class DownloadContentTests extends CallingServerTestBase {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             Response<Void> response = conversationClient
-                .downloadToWithResponse(baos, new URI(VIDEO_URL), null, null, null);
+                .downloadToWithResponse(baos, new URI(VIDEO_URL), null, null);
             assertThat(response, is(notNullValue()));
             assertThat(response.getHeaders().getValue("Content-Type"), is(equalTo("application/octet-stream")));
             assertThat(Integer.parseInt(response.getHeaders().getValue("Content-Length")), is(equalTo(baos.size())));
@@ -102,7 +102,7 @@ public class DownloadContentTests extends CallingServerTestBase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         CommunicationErrorException ex = assertThrows(CommunicationErrorException.class,
             () -> conversationClient
-                .downloadTo(baos, new URI(CONTENT_URL_404), null, null));
+                .downloadTo(baos, new URI(CONTENT_URL_404), null));
         assertThat(ex.getResponse().getStatusCode(), is(equalTo(404)));
     }
 

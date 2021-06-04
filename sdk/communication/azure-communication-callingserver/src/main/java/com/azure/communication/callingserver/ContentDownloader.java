@@ -51,24 +51,23 @@ class ContentDownloader {
         this.logger = logger;
     }
 
-    Mono<Response<Void>> downloadToStream(OutputStream stream, URI endpoint, HttpRange finalRange,
+    Mono<Response<Void>> downloadToStream(OutputStream stream, URI endpoint,
                                         ParallelDownloadOptions parallelDownloadOptions, Context context) {
-        return downloadTo(endpoint, finalRange, parallelDownloadOptions, context,
+        return downloadTo(endpoint, parallelDownloadOptions, context,
             chunkNum -> progressLock -> totalProgress -> response ->
                 writeBodyToStream(response, stream, chunkNum, parallelDownloadOptions,
                 progressLock, totalProgress).flux());
     }
 
-    Mono<Response<Void>> downloadToFile(AsynchronousFileChannel file, URI endpoint, HttpRange finalRange,
+    Mono<Response<Void>> downloadToFile(AsynchronousFileChannel file, URI endpoint,
                                         ParallelDownloadOptions parallelDownloadOptions, Context context) {
-        return downloadTo(endpoint, finalRange, parallelDownloadOptions, context,
+        return downloadTo(endpoint, parallelDownloadOptions, context,
             chunkNum -> progressLock -> totalProgress -> response ->
                 writeBodyToFile(response, file, chunkNum, parallelDownloadOptions, progressLock, totalProgress).flux());
     }
 
     private Mono<Response<Void>> downloadTo(
         URI endpoint,
-        HttpRange finalRange,
         ParallelDownloadOptions parallelDownloadOptions, Context context,
         Function<Integer, Function<Lock, Function<AtomicLong, Function<Response<Flux<ByteBuffer>>, Flux<Void>>>>> writer) {
 
@@ -78,7 +77,7 @@ class ContentDownloader {
         Function<HttpRange, Mono<Response<Flux<ByteBuffer>>>> downloadFunc =
             range -> downloadStreamingWithResponse(endpoint, range, context);
 
-        return downloadFirstChunk(finalRange, parallelDownloadOptions, downloadFunc)
+        return downloadFirstChunk(parallelDownloadOptions, downloadFunc)
             .flatMap(setupTuple2 -> {
                 long newCount = setupTuple2.getT1();
                 int numChunks = calculateNumBlocks(newCount, parallelDownloadOptions.getBlockSizeLong());
@@ -89,7 +88,7 @@ class ContentDownloader {
                 Response<Flux<ByteBuffer>> initialResponse = setupTuple2.getT2();
                 return Flux.range(0, numChunks)
                     .flatMap(chunkNum -> downloadChunk(chunkNum, initialResponse,
-                        finalRange, parallelDownloadOptions, newCount, downloadFunc,
+                        parallelDownloadOptions, newCount, downloadFunc,
                         writer.apply(chunkNum).apply(progressLock).apply(totalProgress)))
                     .then(Mono.just(new SimpleResponse<>(initialResponse, null)));
             });
@@ -117,7 +116,7 @@ class ContentDownloader {
                 Mono<HttpResponse> resumeResponse = makeDownloadRequest(endpoint, range, context);
                 return resumeResponse.map(this::getResponseBody).block();
             },
-            4
+            Constants.ContentDownloader.MAX_RETRIES
         );
     }
 
@@ -178,14 +177,10 @@ class ContentDownloader {
     }
 
     private Mono<Tuple2<Long, Response<Flux<ByteBuffer>>>> downloadFirstChunk(
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions,
         Function<HttpRange, Mono<Response<Flux<ByteBuffer>>>> downloader) {
-        long initialChunkSize = range.getLength() != null
-            && range.getLength() < parallelDownloadOptions.getBlockSizeLong()
-            ? range.getLength() : parallelDownloadOptions.getBlockSizeLong();
 
-        return downloader.apply(new HttpRange(range.getOffset(), initialChunkSize))
+        return downloader.apply(new HttpRange(0, parallelDownloadOptions.getBlockSizeLong()))
             .subscribeOn(Schedulers.boundedElastic())
             .flatMap(response -> {
                 // Extract the total length of the blob from the contentRange header. e.g. "bytes 1-6/7"
@@ -193,15 +188,7 @@ class ContentDownloader {
                     response.getHeaders().getValue(Constants.HeaderNames.CONTENT_RANGE)
                 );
 
-                /*
-                If the user either didn't specify a count or they specified a count greater than the size of the
-                remaining data, take the size of the remaining data. This is to prevent the case where the count
-                is much much larger than the size of the blob and we could try to download at an invalid offset.
-                 */
-                long newCount = range.getLength() == null || range.getLength() > (totalLength - range.getOffset())
-                    ? totalLength - range.getOffset() : range.getLength();
-
-                return Mono.zip(Mono.just(newCount), Mono.just(response));
+                return Mono.zip(Mono.just(totalLength), Mono.just(response));
             })
             .onErrorResume(CommunicationErrorException.class, exception -> {
                 if (exception.getResponse().getStatusCode() == 416
@@ -238,7 +225,7 @@ class ContentDownloader {
         return numBlocks;
     }
 
-    private <T> Flux<T> downloadChunk(Integer chunkNum, Response<Flux<ByteBuffer>> initialResponse, HttpRange finalRange,
+    private <T> Flux<T> downloadChunk(Integer chunkNum, Response<Flux<ByteBuffer>> initialResponse,
                                       ParallelDownloadOptions parallelDownloadOptions, long newCount,
                                       Function<HttpRange, Mono<Response<Flux<ByteBuffer>>>> downloader,
                                       Function<Response<Flux<ByteBuffer>>, Flux<T>> returnTransformer) {
@@ -250,7 +237,7 @@ class ContentDownloader {
         long modifier = chunkNum.longValue() * parallelDownloadOptions.getBlockSizeLong();
         long chunkSizeActual = Math.min(parallelDownloadOptions.getBlockSizeLong(),
             newCount - modifier);
-        HttpRange chunkRange = new HttpRange(finalRange.getOffset() + modifier, chunkSizeActual);
+        HttpRange chunkRange = new HttpRange(modifier, chunkSizeActual);
 
         // Make the download call.
         return downloader.apply(chunkRange)

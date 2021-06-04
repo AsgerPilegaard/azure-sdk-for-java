@@ -289,15 +289,13 @@ public final class ConversationClient {
      * {@code endpoint} and write it into the {@link OutputStream} passed as parameter.
      * @param output - A stream where to write the downloaded content.
      * @param endpoint - ACS URL where the content is located.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *               the whole content will be downloaded.
      * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
      *                               download will work.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public void downloadTo(OutputStream output, URI endpoint, HttpRange range,
+    public void downloadTo(OutputStream output, URI endpoint,
                            ParallelDownloadOptions parallelDownloadOptions) {
-        conversationAsyncClient.downloadTo(output, endpoint, range, parallelDownloadOptions).block();
+        conversationAsyncClient.downloadTo(output, endpoint, parallelDownloadOptions).block();
     }
 
     /**
@@ -305,17 +303,15 @@ public final class ConversationClient {
      * {@code endpoint} and write it in the {@link OutputStream} passed as parameter.
      * @param output - A stream where to write the downloaded content.
      * @param endpoint - ACS URL where the content is located.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *              the whole content will be downloaded.
      * @param context A {@link Context} representing the request context.
      * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
      *                               download will work.
      * @return Response containing the http response information from the download.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Response<Void> downloadToWithResponse(OutputStream output, URI endpoint, HttpRange range,
+    public Response<Void> downloadToWithResponse(OutputStream output, URI endpoint,
                            ParallelDownloadOptions parallelDownloadOptions, Context context) {
-        return conversationAsyncClient.downloadToWithResponse(output, endpoint, range, parallelDownloadOptions, context)
+        return conversationAsyncClient.downloadToWithResponse(output, endpoint, parallelDownloadOptions, context)
             .block();
     }
 
@@ -324,17 +320,15 @@ public final class ConversationClient {
      * This download will be done using parallel workers.
      * @param path - File location.
      * @param endpoint - ACS URL where the content is located.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
      *                               download will work.
      * @param overwrite - True to overwrite the file if it exists.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public void downloadTo(Path path, URI endpoint, HttpRange range,
+    public void downloadTo(Path path, URI endpoint,
                            ParallelDownloadOptions parallelDownloadOptions,
                            boolean overwrite) {
-        conversationAsyncClient.downloadTo(path, endpoint, range,
+        conversationAsyncClient.downloadTo(path, endpoint,
             parallelDownloadOptions, overwrite).block();
     }
 
@@ -343,8 +337,6 @@ public final class ConversationClient {
      * This download will be done using parallel workers.
      * @param path - File location.
      * @param endpoint - ACS URL where the content is located.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - an optional {@link ParallelDownloadOptions} object to modify how the parallel
      *                               download will work.
      * @param overwrite - True to overwrite the file if it exists.
@@ -352,10 +344,10 @@ public final class ConversationClient {
      * @return Response containing the http response information from the download.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Response<Void> downloadToWithResponse(Path path, URI endpoint, HttpRange range,
+    public Response<Void> downloadToWithResponse(Path path, URI endpoint,
                                                  ParallelDownloadOptions parallelDownloadOptions,
                                                  boolean overwrite, Context context) {
-        return conversationAsyncClient.downloadToWithResponse(path, endpoint, range,
+        return conversationAsyncClient.downloadToWithResponse(path, endpoint,
             parallelDownloadOptions, overwrite, context).block();
     }
 

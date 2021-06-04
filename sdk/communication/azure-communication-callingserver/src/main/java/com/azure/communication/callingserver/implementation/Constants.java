@@ -16,6 +16,7 @@ public final class Constants {
         public static final int DEFAULT_CONCURRENT_TRANSFERS_COUNT = 5;
         public static final int DEFAULT_BUFFER_SIZE = 4 * MB;
         public static final int DEFAULT_INITIAL_DOWNLOAD_RANGE_SIZE = 256 * MB;
+        public static final int MAX_RETRIES = 4;
     }
 
     /***

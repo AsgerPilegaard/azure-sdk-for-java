@@ -40,7 +40,7 @@ public class DownloadContentAsyncTests extends CallingServerTestBase {
 
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            conversationAsyncClient.downloadTo(baos, new URI(METADATA_URL), null, null).block();
+            conversationAsyncClient.downloadTo(baos, new URI(METADATA_URL), null).block();
             String metadata = baos.toString(StandardCharsets.UTF_8);
             assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
         } catch (Exception e) {
@@ -101,7 +101,7 @@ public class DownloadContentAsyncTests extends CallingServerTestBase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         CommunicationErrorException ex = assertThrows(CommunicationErrorException.class,
             () -> conversationAsyncClient
-                .downloadTo(baos, new URI(CONTENT_URL_404), null, null).block());
+                .downloadTo(baos, new URI(CONTENT_URL_404), null).block());
         assertThat(ex.getResponse().getStatusCode(), is(equalTo(404)));
     }
 

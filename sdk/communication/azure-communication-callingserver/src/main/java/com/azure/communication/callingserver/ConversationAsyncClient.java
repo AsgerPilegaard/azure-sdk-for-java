@@ -607,8 +607,6 @@ public final class ConversationAsyncClient {
      * and written into the {@code stream}.
      * @param stream - Stream to write the content to.
      * @param endpoint - Location of the recording's content.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
      *                               parallel download will work.
      * @return An empty {@link Mono} object.
@@ -617,11 +615,9 @@ public final class ConversationAsyncClient {
     Mono<Void> downloadTo(
         OutputStream stream,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions) {
-
         return Mono.defer(() -> {
-            downloadToWithResponse(stream, endpoint, range, parallelDownloadOptions).block();
+            downloadToWithResponse(stream, endpoint, parallelDownloadOptions).block();
             return Mono.empty();
         });
     }
@@ -631,8 +627,6 @@ public final class ConversationAsyncClient {
      * and written into the {@code stream}.
      * @param stream - Stream to write the content to.
      * @param endpoint - Location of the recording's content.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
      *                               parallel download will work.
      * @return A {@link Mono} object containing the http response information from the download.
@@ -641,25 +635,21 @@ public final class ConversationAsyncClient {
     public Mono<Response<Void>> downloadToWithResponse(
         OutputStream stream,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions) {
-
-        return downloadToWithResponse(stream, endpoint, range, parallelDownloadOptions, null);
+        return downloadToWithResponse(stream, endpoint, parallelDownloadOptions, null);
     }
 
     Mono<Response<Void>> downloadToWithResponse(
         OutputStream stream,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions,
         Context context) {
-        HttpRange finalRange = range == null ? new HttpRange(0) : range;
         ParallelDownloadOptions finalParallelDownloadOptions =
             parallelDownloadOptions == null
                 ? new ParallelDownloadOptions()
                 : parallelDownloadOptions;
 
-        return contentDownloader.downloadToStream(stream, endpoint, finalRange, finalParallelDownloadOptions, context);
+        return contentDownloader.downloadToStream(stream, endpoint, finalParallelDownloadOptions, context);
     }
 
     /**
@@ -667,8 +657,6 @@ public final class ConversationAsyncClient {
      * and stored into the file in {@code path}.
      * @param path - File path to store file to.
      * @param endpoint - Location of the recording's content.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
      *                               parallel download will work.
      * @param overwrite - True to overwrite the file if it exists.
@@ -678,10 +666,9 @@ public final class ConversationAsyncClient {
     public Mono<Void> downloadTo(
         Path path,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions,
         boolean overwrite) {
-        return downloadToWithResponse(path, endpoint, range, parallelDownloadOptions, overwrite)
+        return downloadToWithResponse(path, endpoint, parallelDownloadOptions, overwrite)
             .map(Response::getValue);
     }
 
@@ -690,8 +677,6 @@ public final class ConversationAsyncClient {
      * and stored into the file in {@code path}.
      * @param path - File path to store file to.
      * @param endpoint - Location of the recording's content.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
      * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
      *                               parallel download will work.
      * @param overwrite - True to overwrite the file if it exists.
@@ -701,20 +686,17 @@ public final class ConversationAsyncClient {
     public Mono<Response<Void>> downloadToWithResponse(
         Path path,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions,
         boolean overwrite) {
-        return downloadToWithResponse(path, endpoint, range, parallelDownloadOptions, overwrite, null);
+        return downloadToWithResponse(path, endpoint, parallelDownloadOptions, overwrite, null);
     }
 
     Mono<Response<Void>> downloadToWithResponse(
         Path path,
         URI endpoint,
-        HttpRange range,
         ParallelDownloadOptions parallelDownloadOptions,
         boolean overwrite,
         Context context) {
-        HttpRange finalRange = range == null ? new HttpRange(0) : range;
         ParallelDownloadOptions finalParallelDownloadOptions =
             parallelDownloadOptions == null
                 ? new ParallelDownloadOptions()
@@ -731,7 +713,7 @@ public final class ConversationAsyncClient {
         try {
             AsynchronousFileChannel file = AsynchronousFileChannel.open(path, openOptions, null);
             return Mono.just(file).flatMap(
-                c -> contentDownloader.downloadToFile(c, endpoint, finalRange, finalParallelDownloadOptions, context))
+                c -> contentDownloader.downloadToFile(c, endpoint, finalParallelDownloadOptions, context))
                 .doFinally(signalType -> contentDownloader.downloadToFileCleanup(file, path, signalType));
         } catch (IOException ex) {
             return monoError(logger, new RuntimeException(ex));
