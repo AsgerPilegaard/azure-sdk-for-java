@@ -2,18 +2,15 @@
 // Licensed under the MIT License.
 package com.azure.communication.callingserver;
 
-import com.azure.communication.callingserver.implementation.models.CommunicationErrorException;
+import com.azure.communication.callingserver.models.CallingServerResponseException;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.rest.Response;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import reactor.core.publisher.Flux;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -42,31 +39,7 @@ public class DownloadContentTests extends CallingServerTestBase {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             conversationClient.downloadTo(baos, new URI(METADATA_URL), null);
-            String metadata = baos.toString(StandardCharsets.UTF_8);
-            assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            throw e;
-        }
-    }
-
-    @ParameterizedTest
-    @MethodSource("com.azure.core.test.TestBase#getHttpClients")
-    public void downloadMetadataStreaming(HttpClient httpClient) throws URISyntaxException {
-        ConversationClientBuilder builder = getConversationClientUsingConnectionString(httpClient);
-        ConversationClient conversationClient = setupClient(builder, "downloadMetadataStreaming");
-
-        try {
-            Flux<ByteBuffer> stream = conversationClient.downloadStreaming(new URI(METADATA_URL));
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            stream.subscribe(byteBuffer -> {
-                try {
-                    baos.write(byteBuffer.array());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-            String metadata = baos.toString(StandardCharsets.UTF_8);
+            String metadata = new String(baos.toByteArray(), StandardCharsets.UTF_8);
             assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
@@ -100,7 +73,7 @@ public class DownloadContentTests extends CallingServerTestBase {
         ConversationClient conversationClient = setupClient(builder, "downloadContent404");
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        CommunicationErrorException ex = assertThrows(CommunicationErrorException.class,
+        CallingServerResponseException ex = assertThrows(CallingServerResponseException.class,
             () -> conversationClient
                 .downloadTo(baos, new URI(CONTENT_URL_404), null));
         assertThat(ex.getResponse().getStatusCode(), is(equalTo(404)));

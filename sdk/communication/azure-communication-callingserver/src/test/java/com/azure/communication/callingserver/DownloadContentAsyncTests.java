@@ -2,15 +2,14 @@
 // Licensed under the MIT License.
 package com.azure.communication.callingserver;
 
-import com.azure.communication.callingserver.implementation.models.CommunicationErrorException;
+import com.azure.communication.callingserver.models.CallingServerResponseException;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.rest.Response;
+import com.azure.core.util.FluxUtil;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Flux;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -39,34 +38,10 @@ public class DownloadContentAsyncTests extends CallingServerTestBase {
         ConversationAsyncClient conversationAsyncClient = setupAsyncClient(builder, "downloadMetadataAsync");
 
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            conversationAsyncClient.downloadTo(baos, new URI(METADATA_URL), null).block();
-            String metadata = baos.toString(StandardCharsets.UTF_8);
-            assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            throw e;
-        }
-    }
-
-    @ParameterizedTest
-    @MethodSource("com.azure.core.test.TestBase#getHttpClients")
-    public void downloadMetadataStreamingAsync(HttpClient httpClient) throws URISyntaxException {
-        ConversationClientBuilder builder = getConversationClientUsingConnectionString(httpClient);
-        ConversationAsyncClient conversationAsyncClient = setupAsyncClient(builder, "downloadMetadataStreamingAsync");
-
-        try {
-            Flux<ByteBuffer> stream = conversationAsyncClient.downloadStreaming(new URI(METADATA_URL)).block();
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            assertThat(stream, is(notNullValue()));
-            stream.subscribe(byteBuffer -> {
-                try {
-                    baos.write(byteBuffer.array());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-            String metadata = baos.toString(StandardCharsets.UTF_8);
+            Flux<ByteBuffer> content = conversationAsyncClient.downloadStream(new URI(METADATA_URL));
+            byte[] contentBytes = FluxUtil.collectBytesInByteBufferStream(content).block();
+            assertThat(contentBytes, is(notNullValue()));
+            String metadata = new String(contentBytes, StandardCharsets.UTF_8);
             assertThat(metadata.contains("0-eus-d2-3cca2175891f21c6c9a5975a12c0141c"), is(true));
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
@@ -81,11 +56,11 @@ public class DownloadContentAsyncTests extends CallingServerTestBase {
         ConversationAsyncClient conversationAsyncClient = setupAsyncClient(builder, "downloadVideoAsync");
 
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            Response<Void> response = conversationAsyncClient.downloadToWithResponse(baos, new URI(VIDEO_URL), null, null).block();
+            Response<Flux<ByteBuffer>> response = conversationAsyncClient.downloadStreamWithResponse(new URI(VIDEO_URL), null).block();
             assertThat(response, is(notNullValue()));
-            assertThat(response.getHeaders().getValue("Content-Type"), is(equalTo("application/octet-stream")));
-            assertThat(Integer.parseInt(response.getHeaders().getValue("Content-Length")), is(equalTo(baos.size())));
+            byte[] contentBytes = FluxUtil.collectBytesInByteBufferStream(response.getValue()).block();
+            assertThat(contentBytes, is(notNullValue()));
+            assertThat(Integer.parseInt(response.getHeaders().getValue("Content-Length")), is(equalTo(contentBytes.length)));
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
             throw e;
@@ -94,15 +69,15 @@ public class DownloadContentAsyncTests extends CallingServerTestBase {
 
     @ParameterizedTest
     @MethodSource("com.azure.core.test.TestBase#getHttpClients")
-    public void downloadContent404Async(HttpClient httpClient) {
+    public void downloadContent404Async(HttpClient httpClient) throws URISyntaxException {
         ConversationClientBuilder builder = getConversationClientUsingConnectionString(httpClient);
         ConversationAsyncClient conversationAsyncClient = setupAsyncClient(builder, "downloadContent404Async");
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        CommunicationErrorException ex = assertThrows(CommunicationErrorException.class,
-            () -> conversationAsyncClient
-                .downloadTo(baos, new URI(CONTENT_URL_404), null).block());
-        assertThat(ex.getResponse().getStatusCode(), is(equalTo(404)));
+        Response<Flux<ByteBuffer>> response = conversationAsyncClient
+                .downloadStreamWithResponse(new URI(CONTENT_URL_404), null).block();
+        assertThat(response, is(notNullValue()));
+        assertThat(response.getStatusCode(), is(equalTo(404)));
+        assertThrows(CallingServerResponseException.class,
+            () -> FluxUtil.collectBytesInByteBufferStream(response.getValue()).block());
     }
 
     private ConversationAsyncClient setupAsyncClient(ConversationClientBuilder builder, String testName) {

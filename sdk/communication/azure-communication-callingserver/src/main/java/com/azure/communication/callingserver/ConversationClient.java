@@ -14,14 +14,11 @@ import com.azure.communication.common.CommunicationIdentifier;
 import com.azure.core.annotation.ReturnType;
 import com.azure.core.annotation.ServiceClient;
 import com.azure.core.annotation.ServiceMethod;
-import com.azure.core.http.HttpRange;
 import com.azure.core.http.rest.Response;
 import com.azure.core.util.Context;
-import reactor.core.publisher.Flux;
 
 import java.io.OutputStream;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 /**
@@ -295,7 +292,7 @@ public final class ConversationClient {
     @ServiceMethod(returns = ReturnType.SINGLE)
     public void downloadTo(OutputStream output, URI endpoint,
                            ParallelDownloadOptions parallelDownloadOptions) {
-        conversationAsyncClient.downloadTo(output, endpoint, parallelDownloadOptions).block();
+        downloadToWithResponse(output, endpoint, parallelDownloadOptions, null);
     }
 
     /**
@@ -328,8 +325,7 @@ public final class ConversationClient {
     public void downloadTo(Path path, URI endpoint,
                            ParallelDownloadOptions parallelDownloadOptions,
                            boolean overwrite) {
-        conversationAsyncClient.downloadTo(path, endpoint,
-            parallelDownloadOptions, overwrite).block();
+        downloadToWithResponse(path, endpoint, parallelDownloadOptions, overwrite, null);
     }
 
     /**
@@ -349,30 +345,5 @@ public final class ConversationClient {
                                                  boolean overwrite, Context context) {
         return conversationAsyncClient.downloadToWithResponse(path, endpoint,
             parallelDownloadOptions, overwrite, context).block();
-    }
-
-    /**
-     * Download the content located in {@code endpoint}, e.g. Recording video, from the ACS endpoint passed as
-     * parameter.
-     * @param endpoint - ACS URL where the content is located.
-     * @return The byte stream of the requested content.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Flux<ByteBuffer> downloadStreaming(URI endpoint) {
-        return conversationAsyncClient.downloadStreaming(endpoint).block();
-    }
-
-    /**
-     * Download the content located in {@code endpoint}, e.g. Recording video, from the ACS endpoint passed as
-     * parameter.
-     * @param endpoint - ACS URL where the content is located.
-     * @param range - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
-     *                  the whole content will be downloaded.
-     * @param context A {@link Context} representing the request context.
-     * @return Response containing the byte stream of the content requested.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Response<Flux<ByteBuffer>> downloadStreamingWithResponse(URI endpoint, HttpRange range, Context context) {
-        return conversationAsyncClient.downloadStreamingWithResponse(endpoint, range, context).block();
     }
 }

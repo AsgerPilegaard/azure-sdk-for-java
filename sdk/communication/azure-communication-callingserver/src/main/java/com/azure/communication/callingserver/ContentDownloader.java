@@ -3,7 +3,7 @@
 package com.azure.communication.callingserver;
 
 import com.azure.communication.callingserver.implementation.Constants;
-import com.azure.communication.callingserver.implementation.models.CommunicationErrorException;
+import com.azure.communication.callingserver.models.CallingServerResponseException;
 import com.azure.communication.callingserver.models.ParallelDownloadOptions;
 import com.azure.communication.callingserver.models.ProgressReporter;
 import com.azure.core.http.HttpMethod;
@@ -75,7 +75,7 @@ class ContentDownloader {
         AtomicLong totalProgress = new AtomicLong(0);
 
         Function<HttpRange, Mono<Response<Flux<ByteBuffer>>>> downloadFunc =
-            range -> downloadStreamingWithResponse(endpoint, range, context);
+            range -> downloadStreamWithResponse(endpoint, range, context);
 
         return downloadFirstChunk(parallelDownloadOptions, downloadFunc)
             .flatMap(setupTuple2 -> {
@@ -94,7 +94,19 @@ class ContentDownloader {
             });
     }
 
-    Mono<Response<Flux<ByteBuffer>>> downloadStreamingWithResponse(URI endpoint, HttpRange httpRange, Context context) {
+    Flux<ByteBuffer> downloadStream(URI endpoint, HttpRange httpRange) {
+        Mono<HttpResponse> httpResponse = makeDownloadRequest(endpoint, httpRange, null);
+        return httpResponse
+            .map(response -> getFluxStream(response, endpoint, httpRange, null))
+            .flux()
+            .flatMap(flux -> flux);
+    }
+
+    Mono<Response<Flux<ByteBuffer>>> downloadStreamWithResponse(URI endpoint, HttpRange httpRange) {
+        return downloadStreamWithResponse(endpoint, httpRange, null);
+    }
+
+    Mono<Response<Flux<ByteBuffer>>> downloadStreamWithResponse(URI endpoint, HttpRange httpRange, Context context) {
         Mono<HttpResponse> httpResponse = makeDownloadRequest(endpoint, httpRange, context);
         return httpResponse.map(response -> {
             Flux<ByteBuffer> result = getFluxStream(response, endpoint, httpRange, context);
@@ -127,7 +139,7 @@ class ContentDownloader {
                 return response.getBody();
             default:
                 throw logger.logExceptionAsError(
-                    new CommunicationErrorException(formatExceptionMessage(response), response)
+                    new CallingServerResponseException(formatExceptionMessage(response), response)
                 );
         }
     }
@@ -190,7 +202,7 @@ class ContentDownloader {
 
                 return Mono.zip(Mono.just(totalLength), Mono.just(response));
             })
-            .onErrorResume(CommunicationErrorException.class, exception -> {
+            .onErrorResume(CallingServerResponseException.class, exception -> {
                 if (exception.getResponse().getStatusCode() == 416
                     && extractTotalBlobLength(
                         exception.getResponse().getHeaderValue(Constants.HeaderNames.CONTENT_RANGE)) == 0) {

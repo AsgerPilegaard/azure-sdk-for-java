@@ -561,11 +561,11 @@ public final class ConversationAsyncClient {
      * Download the recording content, e.g. Recording's metadata, Recording video, from the ACS endpoint
      * passed as parameter.
      * @param endpoint - URL where the content is located.
-     * @return A {@link Mono} object containing the byte stream of the content requested.
+     * @return A {@link Flux} object containing the byte stream of the content requested.
      */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Flux<ByteBuffer>> downloadStreaming(URI endpoint) {
-        return downloadStreamingWithResponse(endpoint, null).map(Response::getValue);
+    @ServiceMethod(returns = ReturnType.COLLECTION)
+    public Flux<ByteBuffer> downloadStream(URI endpoint) {
+        return downloadStream(endpoint, null);
     }
 
     /**
@@ -574,11 +574,11 @@ public final class ConversationAsyncClient {
      * @param endpoint - URL where the content is located.
      * @param httpRange - An optional {@link HttpRange} value containing the range of bytes to download. If missing,
      *                  the whole content will be downloaded.
-     * @return A {@link Mono} object containing the byte stream of the content requested.
+     * @return A {@link Flux} object containing the byte stream of the content requested.
      */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Flux<ByteBuffer>> downloadStreaming(URI endpoint, HttpRange httpRange) {
-        return downloadStreamingWithResponse(endpoint, httpRange).map(Response::getValue);
+    @ServiceMethod(returns = ReturnType.COLLECTION)
+    public Flux<ByteBuffer> downloadStream(URI endpoint, HttpRange httpRange) {
+        return contentDownloader.downloadStream(endpoint, httpRange);
     }
 
     /**
@@ -589,54 +589,13 @@ public final class ConversationAsyncClient {
      * @return A {@link Mono} object containing a {@link Response} with the byte stream of the content requested.
      */
     @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<Flux<ByteBuffer>>> downloadStreamingWithResponse(URI endpoint, HttpRange range) {
-        return downloadStreamingWithResponse(endpoint, range, null);
-    }
-
-    Mono<Response<Flux<ByteBuffer>>> downloadStreamingWithResponse(URI endpoint, HttpRange range, Context context) {
+    public Mono<Response<Flux<ByteBuffer>>> downloadStreamWithResponse(URI endpoint, HttpRange range) {
         try {
             Objects.requireNonNull(endpoint, "'endpoint' cannot be null");
-            return contentDownloader.downloadStreamingWithResponse(endpoint, range, context);
+            return contentDownloader.downloadStreamWithResponse(endpoint, range);
         } catch (RuntimeException ex) {
             return monoError(logger, ex);
         }
-    }
-
-    /**
-     * Download the recording content (e.g. Recording's metadata, Recording video, etc.) from the {@code endpoint}
-     * and written into the {@code stream}.
-     * @param stream - Stream to write the content to.
-     * @param endpoint - Location of the recording's content.
-     * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
-     *                               parallel download will work.
-     * @return An empty {@link Mono} object.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    Mono<Void> downloadTo(
-        OutputStream stream,
-        URI endpoint,
-        ParallelDownloadOptions parallelDownloadOptions) {
-        return Mono.defer(() -> {
-            downloadToWithResponse(stream, endpoint, parallelDownloadOptions).block();
-            return Mono.empty();
-        });
-    }
-
-    /**
-     * Download the recording content (e.g. Recording's metadata, Recording video, etc.) from the {@code endpoint}
-     * and written into the {@code stream}.
-     * @param stream - Stream to write the content to.
-     * @param endpoint - Location of the recording's content.
-     * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
-     *                               parallel download will work.
-     * @return A {@link Mono} object containing the http response information from the download.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<Void>> downloadToWithResponse(
-        OutputStream stream,
-        URI endpoint,
-        ParallelDownloadOptions parallelDownloadOptions) {
-        return downloadToWithResponse(stream, endpoint, parallelDownloadOptions, null);
     }
 
     Mono<Response<Void>> downloadToWithResponse(
@@ -650,45 +609,6 @@ public final class ConversationAsyncClient {
                 : parallelDownloadOptions;
 
         return contentDownloader.downloadToStream(stream, endpoint, finalParallelDownloadOptions, context);
-    }
-
-    /**
-     * Download the recording content (e.g. Recording's metadata, Recording video, etc.) from the {@code endpoint}
-     * and stored into the file in {@code path}.
-     * @param path - File path to store file to.
-     * @param endpoint - Location of the recording's content.
-     * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
-     *                               parallel download will work.
-     * @param overwrite - True to overwrite the file if it exists.
-     * @return An empty {@link Mono} object.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Void> downloadTo(
-        Path path,
-        URI endpoint,
-        ParallelDownloadOptions parallelDownloadOptions,
-        boolean overwrite) {
-        return downloadToWithResponse(path, endpoint, parallelDownloadOptions, overwrite)
-            .map(Response::getValue);
-    }
-
-    /**
-     * Download the recording content (e.g. Recording's metadata, Recording video, etc.) from the {@code endpoint}
-     * and stored into the file in {@code path}.
-     * @param path - File path to store file to.
-     * @param endpoint - Location of the recording's content.
-     * @param parallelDownloadOptions - An optional {@link ParallelDownloadOptions} object to modify how the
-     *                               parallel download will work.
-     * @param overwrite - True to overwrite the file if it exists.
-     * @return A {@link Mono} object containing the http response information from the download.
-     */
-    @ServiceMethod(returns = ReturnType.SINGLE)
-    public Mono<Response<Void>> downloadToWithResponse(
-        Path path,
-        URI endpoint,
-        ParallelDownloadOptions parallelDownloadOptions,
-        boolean overwrite) {
-        return downloadToWithResponse(path, endpoint, parallelDownloadOptions, overwrite, null);
     }
 
     Mono<Response<Void>> downloadToWithResponse(
